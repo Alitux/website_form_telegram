@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="res_config_settings_view_form_telegram" model="ir.ui.view">
+        <field name="name">res.config.settings telegram forms</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="base.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//form" position="inside">
+                <app data-string="Telegram" string="Telegram" name="website_form_telegram">
+                    <block title="Formularios web a Telegram" id="website_form_telegram_block">
+                        <setting string="Enviar formularios a Telegram" help="Reenvía todos los formularios del website a Telegram">
+                            <field name="telegram_enabled"/>
+                        </setting>
+                        <setting string="Bot Token" help="Token del bot creado con @BotFather">
+                            <field name="telegram_bot_token" password="True"/>
+                        </setting>
+                        <setting string="Chat ID" help="ID del chat, grupo o canal. Ej: -1001234567890">
+                            <div class="content-group">
+                                <field name="telegram_chat_id" placeholder="-1001234567890"/>
+                                <div class="text-muted">
+                                    Creá el bot con @BotFather y obtené el chat_id con @userinfobot.
+                                </div>
+                                <button name="action_test_telegram" type="object" string="Enviar mensaje de prueba" class="btn btn-secondary mt8"/>
+                            </div>
+                        </setting>
+                    </block>
+                </app>
+            </xpath>
+        </field>
+    </record>
+</odoo>
