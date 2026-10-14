@@ -13,6 +13,31 @@ PARAM_CHAT = 'website_form_telegram.chat_id'
 
 TELEGRAM_LIMIT = 4096
 
+# Parámetros de tracking (origen del anuncio), en orden de display.
+# Debe mantenerse sincronizado con models/ir_http.py::TRACKING_PARAMS.
+TRACKING_PARAMS = (
+    'utm_source',
+    'utm_medium',
+    'utm_campaign',
+    'utm_content',
+    'utm_term',
+    'gclid',
+    'fbclid',
+)
+
+TRACKING_COOKIE_PREFIX = 'wft_'
+TRACKING_VALUE_MAX_LEN = 500
+
+# Fallback a las cookies nativas de Odoo (módulo utm) para los 3 clásicos,
+# por si el visitante las trae de antes de instalar este módulo.
+ODOO_UTM_COOKIES = {
+    'utm_campaign': 'odoo_utm_campaign',
+    'utm_source': 'odoo_utm_source',
+    'utm_medium': 'odoo_utm_medium',
+}
+
+TRACKING_BLOCK_TITLE = '— Origen (UTM) —'
+
 
 class TelegramService(models.AbstractModel):
     _name = 'website_form_telegram.service'
@@ -26,6 +51,52 @@ class TelegramService(models.AbstractModel):
             'bot_token': (ICP.get_param(PARAM_TOKEN, '') or '').strip(),
             'chat_id': (ICP.get_param(PARAM_CHAT, '') or '').strip(),
         }
+
+    @api.model
+    def get_tracking(self, cookies=None):
+        """Lee el origen del anuncio desde las cookies. Nunca lanza excepción.
+
+        :param cookies: dict estilo request.cookies. Si es None, intenta
+            leerlas del request actual.
+        :return: dict ordenado {param: value} solo con valores presentes.
+        """
+        try:
+            if cookies is None:
+                from odoo.http import request as http_request
+                try:
+                    cookies = http_request.cookies or {}
+                except Exception:  # noqa: BLE001 - fuera de request (tests)
+                    return {}
+            cookies = cookies or {}
+            tracking = {}
+            for param in TRACKING_PARAMS:
+                value = cookies.get(TRACKING_COOKIE_PREFIX + param) or ''
+                if not value and param in ODOO_UTM_COOKIES:
+                    value = cookies.get(ODOO_UTM_COOKIES[param]) or ''
+                value = str(value).strip()[:TRACKING_VALUE_MAX_LEN]
+                if value:
+                    tracking[param] = value
+            return tracking
+        except Exception as e:  # noqa: BLE001 - jamás romper el form
+            _logger.debug('WFT tracking: get_tracking falló: %s', e)
+            return {}
+
+    @api.model
+    def format_tracking_block(self, tracking):
+        """Arma el bloque de texto '— Origen (UTM) —'. Vacío si no hay datos."""
+        if not tracking:
+            return ''
+        lines = [TRACKING_BLOCK_TITLE]
+        for key in TRACKING_PARAMS:
+            if tracking.get(key):
+                lines.append('%s: %s' % (key, tracking[key]))
+        # por si llega un dict con claves extra
+        for key, val in tracking.items():
+            if key not in TRACKING_PARAMS and val:
+                lines.append('%s: %s' % (key, val))
+        if len(lines) == 1:
+            return ''
+        return '\n'.join(lines)
 
     @api.model
     def html_to_text(self, value):

@@ -11,13 +11,37 @@ class WebsiteFormTelegram(WebsiteForm):
 
     El form builder de Odoo 18 vive en website/controllers/form.py y su
     método insert_record() crea el registro (normalmente un mail.mail que
-    luego se envía por correo). Aquí lo extendemos para notificar a Telegram
-    sin alterar el flujo original: si Telegram falla, el formulario sigue
-    respondiendo éxito.
+    luego se envía por correo). Aquí lo extendemos para:
+
+    1. Inyectar el origen del anuncio (UTM/gclid/fbclid desde cookies) en
+       ``custom`` ANTES de crear el registro, para que quede guardado en el
+       mail (body_html) y disponible para cualquier modelo destino.
+    2. Notificar a Telegram sin alterar el flujo original: si Telegram falla,
+       el formulario sigue respondiendo éxito.
     """
 
+    def _inject_tracking(self, request, custom):
+        """Anexa el bloque '— Origen (UTM) —' a custom. Nunca lanza excepción."""
+        try:
+            service = request.env['website_form_telegram.service'].sudo()
+            cookies = getattr(request, 'cookies', None) or {}
+            tracking = service.get_tracking(cookies)
+            block = service.format_tracking_block(tracking)
+            if not block:
+                return custom
+            if custom:
+                return '%s\n\n%s' % (custom, block)
+            return block
+        except Exception as e:  # noqa: BLE001 - jamás romper el envío del form
+            _logger.debug('WebsiteFormTelegram: no se pudo inyectar UTM: %s', e)
+            return custom
+
     def insert_record(self, request, model, values, custom, meta=None):
+        # 1. UTM primero: queda persistido en el registro (mail incluido),
+        #    haya o no Telegram configurado.
+        custom = self._inject_tracking(request, custom)
         record_id = super().insert_record(request, model, values, custom, meta=meta)
+        # 2. Telegram: el mensaje ya incluye custom (con UTM) en ambas ramas.
         try:
             Env = request.env
             service = Env['website_form_telegram.service'].sudo()

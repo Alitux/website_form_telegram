@@ -39,3 +39,42 @@ class TestTelegramService(TransactionCase):
             mock_post.return_value.text = 'ok'
             self.assertTrue(svc.send_message('hola'))
             mock_post.assert_called_once()
+
+    def test_get_tracking_own_cookies(self):
+        svc = self.env['website_form_telegram.service']
+        tracking = svc.get_tracking({
+            'wft_utm_source': 'facebook',
+            'wft_utm_medium': 'cpc',
+            'wft_utm_campaign': 'promo-octubre',
+            'wft_gclid': 'abc123',
+            'other': 'ignored',
+        })
+        self.assertEqual(tracking, {
+            'utm_source': 'facebook',
+            'utm_medium': 'cpc',
+            'utm_campaign': 'promo-octubre',
+            'gclid': 'abc123',
+        })
+
+    def test_get_tracking_fallback_odoo_cookies(self):
+        svc = self.env['website_form_telegram.service']
+        tracking = svc.get_tracking({
+            'odoo_utm_source': 'google',
+            'odoo_utm_medium': 'cpc',
+        })
+        self.assertEqual(tracking['utm_source'], 'google')
+        self.assertEqual(tracking['utm_medium'], 'cpc')
+
+    def test_get_tracking_empty(self):
+        svc = self.env['website_form_telegram.service']
+        self.assertEqual(svc.get_tracking({}), {})
+        # None intenta leer del request actual; fuera de request debe dar {}
+        self.assertEqual(svc.get_tracking(None), {})
+
+    def test_format_tracking_block(self):
+        svc = self.env['website_form_telegram.service']
+        block = svc.format_tracking_block({'utm_source': 'facebook', 'gclid': 'abc'})
+        self.assertIn('— Origen (UTM) —', block)
+        self.assertIn('utm_source: facebook', block)
+        self.assertIn('gclid: abc', block)
+        self.assertEqual(svc.format_tracking_block({}), '')
