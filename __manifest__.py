@@ -14,7 +14,7 @@ y los reenvía a un chat/grupo/canal de Telegram vía Bot API.
     'author': 'Alitux',
     'website': 'https://alitux.com.ar',
     'category': 'Website/Website',
-    'version': '18.0.1.1.0',
+    'version': '18.0.1.2.0',
     'license': 'LGPL-3',
     'depends': ['base', 'mail', 'website', 'utm'],
     'data': [

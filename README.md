@@ -106,14 +106,11 @@ O por shell/CSV de parámetros del sistema. Luego pulsá **Enviar mensaje de pru
 🔔 Nuevo formulario: Correo electrónico
 📌 Asunto: Contacto web: Presupuesto
 
-— Datos del formulario —
-...
-
-— Cuerpo completo —
-Nombre: Juan
-Email: juan@mail.com
-...
+<contenido del mail: datos del formulario + bloque UTM, sin duplicados>
 ```
+
+El cuerpo ya incluye los datos del formulario y el bloque `— Origen (UTM) —`
+(el core los vuelca en el `body_html`), así que no se repiten secciones.
 
 **Caso genérico (otro modelo):**
 

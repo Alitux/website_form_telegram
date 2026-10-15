@@ -78,3 +78,32 @@ class TestTelegramService(TransactionCase):
         self.assertIn('utm_source: facebook', block)
         self.assertIn('gclid: abc', block)
         self.assertEqual(svc.format_tracking_block({}), '')
+
+    def test_mail_telegram_no_duplicate(self):
+        """El mensaje de Telegram para mail.mail no repite datos ni UTM."""
+        from types import SimpleNamespace
+
+        from odoo.addons.website_form_telegram.controllers.main import WebsiteFormTelegram
+
+        ICP = self.env['ir.config_parameter'].sudo()
+        ICP.set_param('website_form_telegram.enabled', 'True')
+        ICP.set_param('website_form_telegram.bot_token', 'TOKEN')
+        ICP.set_param('website_form_telegram.chat_id', '123')
+        model = self.env['ir.model'].sudo().search([('model', '=', 'mail.mail')], limit=1)
+        req = SimpleNamespace(env=self.env, cookies={'wft_utm_source': 'facebook'})
+        values = {
+            'subject': 'Hola',
+            'email_from': 'a@x.com',
+            'email_to': 'b@x.com',
+            'body_html': '<p>test</p>',
+        }
+        with patch('requests.post') as mock_post:
+            mock_post.return_value.status_code = 200
+            mock_post.return_value.text = 'ok'
+            WebsiteFormTelegram().insert_record(req, model, values, 'nombre : Juan', None)
+        self.assertTrue(mock_post.call_count >= 1)
+        full = '\n'.join(c.kwargs['json']['text'] for c in mock_post.call_args_list)
+        self.assertNotIn('— Datos del formulario —', full)
+        self.assertNotIn('— Cuerpo completo —', full)
+        self.assertEqual(full.count('utm_source: facebook'), 1)
+        self.assertEqual(full.count('nombre : Juan'), 1)

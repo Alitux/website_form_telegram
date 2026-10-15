@@ -56,10 +56,13 @@ class WebsiteFormTelegram(WebsiteForm):
                 subject = mail.subject or 'Formulario web'
                 body_text = service.html_to_text(mail.body_html or mail.body or '')
                 header = '🔔 Nuevo formulario: %s\n📌 Asunto: %s' % (model_label, subject)
-                if custom:
-                    header += '\n\n— Datos del formulario —\n%s' % service.html_to_text(custom)[:2000]
                 if body_text:
-                    header += '\n\n— Cuerpo completo —\n%s' % body_text
+                    # El cuerpo ya incluye los datos del formulario (el core
+                    # vuelca custom en body_html al crear el registro): no se
+                    # agrega sección aparte para no duplicar.
+                    header += '\n\n%s' % body_text
+                elif custom:
+                    header += '\n\n— Datos del formulario —\n%s' % service.html_to_text(custom)[:2000]
                 service.send_message(header)
             elif record_id:
                 msg = service.build_form_message(model_label, values, custom=custom, meta=meta or '')
